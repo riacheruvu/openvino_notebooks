@@ -23,7 +23,8 @@ from diffusers.schedulers import (DDIMScheduler,
 
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput
 from diffusers.image_processor import VaeImageProcessor
-
+from diffusers.pipelines.stable_diffusion import StableDiffusionSafetyChecker
+from transformers import CLIPImageProcessor
 import cv2
 import os
 import sys
@@ -91,10 +92,14 @@ class LatentConsistencyEngine(DiffusionPipeline):
         self,
             model="SimianLuo/LCM_Dreamshaper_v7",
             tokenizer="openai/clip-vit-large-patch14",
+            safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker"),
+            feature_extractor=CLIPImageProcessor.from_pretrained("openai/clip-vit-base-patch32"),
             device=["CPU", "CPU", "CPU"],
     ):
         super().__init__()
         try:
+            self.safety_checker=StableDiffusionSafetyChecker.from_pretrained("CompVis/stable-diffusion-safety-checker")
+            self.feature_extractor=CLIPImageProcessor.from_pretrained("openai/clip-vit-base-patch32")
             self.tokenizer = CLIPTokenizer.from_pretrained(model, local_files_only=True)
         except:
             self.tokenizer = CLIPTokenizer.from_pretrained(tokenizer)
@@ -119,8 +124,8 @@ class LatentConsistencyEngine(DiffusionPipeline):
 
         self.vae_decoder = self.core.compile_model(os.path.join(model, "vae_decoder.xml"), device[2])
         self.infer_request_vae = self.vae_decoder.create_infer_request()
-        self.safety_checker = None #pipe.safety_checker
-        self.feature_extractor = None #pipe.feature_extractor
+        #self.safety_checker = pipe.safety_checker #
+        #self.feature_extractor = self.feature_extractor #
         self.vae_scale_factor = 2 ** 3
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
@@ -334,13 +339,13 @@ class LatentConsistencyEngine(DiffusionPipeline):
 
         #print("vae decoder done", time.time() - vae_start)
         #post_start = time.time()
+        image, has_nsfw_concept = self.run_safety_checker(image, dtype=torch.float32)
+        if has_nsfw_concept is None:
+            do_denormalize = [True] * image.shape[0]
+        else:
+            do_denormalize = [not has_nsfw for has_nsfw in has_nsfw_concept]
 
-        #if has_nsfw_concept is None:
-        do_denormalize = [True] * image.shape[0]
-        #else:
-        #    do_denormalize = [not has_nsfw for has_nsfw in has_nsfw_concept]
-
-        #print ("After do_denormalize: image is ", image)
+        print ("After do_denormalize: image is ", image)
 
         image = self.image_processor.postprocess(
             image, output_type=output_type, do_denormalize=do_denormalize
