@@ -12,9 +12,9 @@ Tested on: Intel® Core™ Ultra 7 and 9 Processors
 
 1. Clone this repository to get started
 
-2. Create a virtual env and install the required python packages <br>
+2. Create a virtual env and install the required python packages (select requirements.txt depending on the used python version)
     ```
-    	python -m venv dnd_env
+	python -m venv dnd_env
 	dnd_env\Scripts\activate
 	pip install -r requirements.txt 
 	pip install "openai-whisper==20231117" --extra-index-url https://download.pytorch.org/whl/cpu
