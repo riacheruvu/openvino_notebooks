@@ -35,7 +35,7 @@ def ready_ocr_model():
     return ocr_ov_model, ocr_tokenizer, streamer
 
 def ready_llm_model():
-    model_dir = r"dnd_models\llama-3-8b-instruct\INT4_compressed_weights"
+    model_dir = r"C:\Users\riach\openvino_notebooks\notebooks\llm-chatbot\llama-3-8b-instruct\INT4_compressed_weights" #r"dnd_models\llama-3-8b-instruct\INT4_compressed_weights"
     print(f"Loading model from {model_dir}")
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": "temp/"}
     model_configuration = SUPPORTED_LLM_MODELS["English"]["llama-3-8b-instruct"]
@@ -96,12 +96,11 @@ def add_theme(prompt, location):
         return f"{prompt} - {location}"
     
 def adjust_theme(text, dice_roll_number, prompt=None):
-    if text != "discard":
-        indexed_location = locations_json[str(dice_roll_number)]
-        try:
-            return indexed_location
-        except:
-            return "No theme"
+    indexed_location = locations_json[str(dice_roll_number)]
+    try:
+        return indexed_location
+    except:
+        return "No theme"
 
 def progress_callback(i, conn):
     tosend = bytes(str(i), 'utf-8')
@@ -173,12 +172,16 @@ def llama(text, random_num=None):
     return result
 
 def parse_ocr_output(text):
-    if text != "discard":
-        try:
-            return int(''.join(filter(str.isdigit, text)))
-        except:
-            #Detection did not work or image is empty
+    try:
+        detected_roll = int(''.join(filter(str.isdigit, text)))
+        if 0 <= detected_roll <= 20:
+            #Detected number is out of range
             return 0
+        else:
+            return detected_roll
+    except:
+        #Detection did not work or image is empty
+        return 0
 
 def depth_map_parallax():
     #This function will load the OV Depth Anything model
@@ -305,7 +308,6 @@ with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
 
     with gr.Row():
         with gr.Column(scale=1):
-            radio = gr.Radio(["yes", "no"], label="Dice OCR")
             i = gr.Image(sources="webcam", label="Step 1: Roll Die / Dream", type="pil")
             ocr_output = gr.Textbox(label="Output of OCR Model", visible=False)
             #out = gr.Textbox(label="Number typed in", elem_id="visible")
@@ -325,6 +327,7 @@ with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
             text_output = gr.Textbox(lines=3, label="LLM Prompt + Theme (or leave empty)", type="text", container=True, placeholder="LLM Prompt (Leave Empty to Discard)")
             #theme_options = gr.Dropdown(['None', 'Dark', 'Happy', 'Nostalgic'], label="Theme")
             image_btn = gr.Button(value="Step 6: Generate Image", variant="primary")
+            radio = gr.Radio(["yes", "no"], label="Please Select: Recognize Dice?")
             #Parameters for LCM
             with gr.Accordion("Advanced Parameters", open=False):
                 seed_input = gr.Slider(0, 10000000, value=34, label="Seed")
