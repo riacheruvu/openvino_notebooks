@@ -35,7 +35,7 @@ def ready_ocr_model():
     return ocr_ov_model, ocr_tokenizer, streamer
 
 def ready_llm_model():
-    model_dir = r"C:\Users\riach\openvino_notebooks\notebooks\llm-chatbot\llama-3-8b-instruct\INT4_compressed_weights"
+    model_dir = r"dnd_models\llama-3-8b-instruct\INT4_compressed_weights"
     print(f"Loading model from {model_dir}")
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": "temp/"}
     model_configuration = SUPPORTED_LLM_MODELS["English"]["llama-3-8b-instruct"]
