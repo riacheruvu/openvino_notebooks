@@ -35,7 +35,7 @@ def ready_ocr_model():
     return ocr_ov_model, ocr_tokenizer, streamer
 
 def ready_llm_model():
-    model_dir = r"dnd_models\llama-3-8b-instruct\INT4_compressed_weights"
+    model_dir = r"C:\Users\riach\openvino_notebooks\notebooks\llm-chatbot\llama-3-8b-instruct\INT4_compressed_weights"
     print(f"Loading model from {model_dir}")
     ov_config = {"PERFORMANCE_HINT": "LATENCY", "NUM_STREAMS": "1", "CACHE_DIR": "temp/"}
     model_configuration = SUPPORTED_LLM_MODELS["English"]["llama-3-8b-instruct"]
@@ -64,46 +64,44 @@ if OCR is True:
 print("Ready to launch")
 
 def ocr_dice_roll(image, ocr_radio=False):
-    print("OCR RADIO: ", ocr_radio)
-    try:
-        if ocr_radio == "yes":
-            prompt = "What number did I just roll using the dice from the picture?"
-        else:
-            prompt= "Describe what you see in the image in 6 words ONLY."
-        messages = [{"role": "user", "content": f"<image>\n{prompt}"}]
-        text = ocr_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        text_chunks = [ocr_tokenizer(chunk).input_ids for chunk in text.split("<image>")]
-        input_ids = torch.tensor(text_chunks[0] + [-200] + text_chunks[1], dtype=torch.long).unsqueeze(0)
-        #streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
-        image_tensor = ocr_ov_model.process_images([image], ocr_ov_model.config)
-        generation_kwargs = dict(
-            input_ids=input_ids, images=image_tensor, streamer=streamer, max_new_tokens=128, temperature=0.01
-        )
-        thread = Thread(target=ocr_ov_model.generate, kwargs=generation_kwargs)
-        thread.start()
-        buffer = ""
-        for new_text in streamer:
-            buffer += new_text
-            generated_text_without_prompt = buffer[:]
-            #time.sleep(0.04)
-        if ocr_radio == "yes":
-            return generated_text_without_prompt, " "
-        else: 
-            return " ", generated_text_without_prompt
-    except AttributeError:
-        #No input image was passed
-        pass
+    #print("OCR RADIO: ", ocr_radio)
+    if ocr_radio == "yes":
+        prompt = "What number did I just roll using the dice from the picture?"
+    else:
+        prompt= "Describe what you see in the image in 6 words ONLY."
+    messages = [{"role": "user", "content": f"<image>\n{prompt}"}]
+    text = ocr_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    text_chunks = [ocr_tokenizer(chunk).input_ids for chunk in text.split("<image>")]
+    input_ids = torch.tensor(text_chunks[0] + [-200] + text_chunks[1], dtype=torch.long).unsqueeze(0)
+    #streamer = TextStreamer(tokenizer, skip_prompt=True, skip_special_tokens=True)
+    image_tensor = ocr_ov_model.process_images([image], ocr_ov_model.config)
+    generation_kwargs = dict(
+        input_ids=input_ids, images=image_tensor, streamer=streamer, max_new_tokens=128, temperature=0.01
+    )
+    thread = Thread(target=ocr_ov_model.generate, kwargs=generation_kwargs)
+    thread.start()
+    buffer = ""
+    for new_text in streamer:
+        buffer += new_text
+        generated_text_without_prompt = buffer[:]
+        #time.sleep(0.04)
+    if ocr_radio == "yes":
+        return generated_text_without_prompt, None
+    else: 
+        print("Doing this")
+        return None, generated_text_without_prompt
 
 def add_theme(prompt, location):
-    if location not in prompt:
+    if location not in prompt and "No theme" not in str(location):
         return f"{prompt} - {location}"
     
-def adjust_theme(dice_roll_number, prompt=None):
-    indexed_location = locations_json[str(dice_roll_number)]
-    try:
-        return indexed_location
-    except:
-        return "No theme"
+def adjust_theme(text, dice_roll_number, prompt=None):
+    if text != "discard":
+        indexed_location = locations_json[str(dice_roll_number)]
+        try:
+            return indexed_location
+        except:
+            return "No theme"
 
 def progress_callback(i, conn):
     tosend = bytes(str(i), 'utf-8')
@@ -154,14 +152,14 @@ def run_sr(img):
 
     return result_image
 
-def llama(random_num, text):
+def llama(text, random_num=None):
     #if first_run is True:
     tokenizer_kwargs = model_configuration.get("tokenizer_kwargs", {})
     test_string = f"""You are a Dungeons and Dragons prompt assistant who reads prompts and turns them into short prompts \
         for an image-generator. Rephrase the following sentence to be a descriptive prompt that is one short sentence only\
         and easy for a image generation model to understand, ending with proper punctuation. Add the theme to the prompt.): \
         ### Prompt: {text} \
-        ### Theme: {locations_json[str(random_num)]} \
+        ### Theme: {random_num}
         ### Rephrased Prompt: """
     input_tokens = llm_tokenizer(test_string, return_tensors="pt", **tokenizer_kwargs)
     answer = llm_model.generate(**input_tokens, max_new_tokens=45)
@@ -175,11 +173,12 @@ def llama(random_num, text):
     return result
 
 def parse_ocr_output(text):
-    try:
-        return int(''.join(filter(str.isdigit, text)))
-    except:
-        #Detection did not work or image is empty
-        return 1
+    if text != "discard":
+        try:
+            return int(''.join(filter(str.isdigit, text)))
+        except:
+            #Detection did not work or image is empty
+            return 0
 
 def depth_map_parallax():
     #This function will load the OV Depth Anything model
@@ -188,12 +187,18 @@ def depth_map_parallax():
     print("Depth Map WIP")
 
 def generate_llm_prompt(text, dice_roll, _=gr.Progress(track_tqdm=True)):
-   text = llama(dice_roll, text)
+   
+   if str(dice_roll) == "0":
+       text = llama(text, "Ignore theme")
+   else:
+       text = llama(text, dice_roll)
    return text  
 
-def generate_from_text(dice_roll_num, orig_prompt, llm_prompt, seed, num_steps,guidance_input, _=gr.Progress(track_tqdm=True)):
-   if llm_prompt == "": 
-       text = orig_prompt + locations_json[str(dice_roll_num)]
+def generate_from_text(theme, orig_prompt, llm_prompt, seed, num_steps,guidance_input, _=gr.Progress(track_tqdm=True)):
+   
+   if llm_prompt == "": # and output_ocr_text != "discard":
+       #if dice_roll_theme not in orig_prompt
+       text = orig_prompt # + locations_json[str(dice_roll_num)]
    else:
        text = llm_prompt
    output = engine(
@@ -207,7 +212,8 @@ def generate_from_text(dice_roll_num, orig_prompt, llm_prompt, seed, num_steps,g
 )
    img= cv2.cvtColor(np.array(output), cv2.COLOR_RGB2BGR)
    out = run_sr(img)
-   return out  
+   img= cv2.cvtColor(np.array(out), cv2.COLOR_RGB2BGR)
+   return img  
 
 def start(progress=gr.Progress()):
     
@@ -295,7 +301,7 @@ theme=gr.themes.Soft()
 
 with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
 
-    gr.Markdown(""" # 🏰 Bringing Adventure Gaming to Life 🧙 Using Real-time Generative AI on Your PC """)
+    gr.Markdown(""" # 🏰 Bringing Adventure Gaming to Life 🧙 \n Using Real-time Generative AI on Your PC 💻 """)
 
     with gr.Row():
         with gr.Column(scale=1):
@@ -304,7 +310,7 @@ with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
             ocr_output = gr.Textbox(label="Output of OCR Model", visible=False)
             #out = gr.Textbox(label="Number typed in", elem_id="visible")
             with gr.Row():
-                dice_roll_input = gr.Textbox(lines=2, label="20-side Die Roll", container=True, placeholder="1", visible=True)
+                dice_roll_input = gr.Textbox(lines=2, label="20-side Die Roll", container=True, placeholder="0", visible=True)
                 dice_roll_theme = gr.Textbox(label="Theme", visible=True)
             with gr.Row():
                 with gr.Row():
@@ -318,9 +324,9 @@ with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
                 llm_button = gr.Button(value="Step 5: Refine Prompt with LLM", variant="primary")
             text_output = gr.Textbox(lines=3, label="LLM Prompt + Theme (or leave empty)", type="text", container=True, placeholder="LLM Prompt (Leave Empty to Discard)")
             #theme_options = gr.Dropdown(['None', 'Dark', 'Happy', 'Nostalgic'], label="Theme")
-            image_btn = gr.Button(value="Step 6: Generate Image (Prompt + Theme)", variant="primary")
+            image_btn = gr.Button(value="Step 6: Generate Image", variant="primary")
             #Parameters for LCM
-            with gr.Accordion("Open for More Parameters!", open=False):
+            with gr.Accordion("Advanced Parameters", open=False):
                 seed_input = gr.Slider(0, 10000000, value=34, label="Seed")
                 steps_input = gr.Slider(1, 50, value=5, step=1, label="Steps")
                 guidance_input = gr.Slider(0, 15, value=2.0, label="Guidance")
@@ -328,27 +334,25 @@ with gr.Blocks(css=css_code, js=_js, theme=theme) as demo:
             out = gr.Image(label="Result", type="pil", elem_id="visible")
 
     radio.change(update_visibility, radio, [ocr_output, dice_roll_input])        
-    try:
-        i.change(ocr_dice_roll, [i, radio], [ocr_output, dice_roll_theme])
-    except ValueError:
-        pass
+    i.change(ocr_dice_roll, [i, radio], [ocr_output, dice_roll_theme])
     #the following lines of code only apply if we are looking at a dice roll
     ocr_output.change(parse_ocr_output, ocr_output, dice_roll_input)
-    dice_roll_input.change(adjust_theme, dice_roll_input, dice_roll_theme)
+    dice_roll_input.change(adjust_theme, [ocr_output, dice_roll_input], dice_roll_theme)
     btn.click(start,outputs=text2)
     stop_btn.click(stop,outputs=text_input)
     add_theme_button.click(add_theme, [text_input, dice_roll_theme], text_input)
     llm_button.click(generate_llm_prompt, [text_input, dice_roll_input], text_output)
     #The LLM Generated Prompt can be left empty, and the image will be generated with the original prompt + theme
-    image_btn.click(generate_from_text, [dice_roll_input, text_input, text_output, seed_input, steps_input, guidance_input], out)
+    image_btn.click(generate_from_text, [dice_roll_theme, text_input, text_output, seed_input, steps_input, guidance_input], out)
     
     #with gr.Row():
         #with gr.Column(scale=1):
             #Image.fromarray(out).save("output.png")
             #filepath = Path("output.PNG").name
             #d = gr.DownloadButton("Download Smaller Image", value = filepath, visible=True)
-
-try:
-    demo.launch(share=True,debug=True,allowed_paths=['assets/image_opt.jpg',])
-except Exception:
-    demo.launch(share=True, debug=True,allowed_paths=['assets/image_opt.jpg',])
+if __name__ == "__main__":
+    demo.launch(share=True,server_port=7960, debug=True,allowed_paths=['assets/image_opt.jpg',])
+#try:
+#    demo.launch(share=True,debug=True,allowed_paths=['assets/image_opt.jpg',])
+#except Exception:
+#    demo.launch(share=True, debug=True,allowed_paths=['assets/image_opt.jpg',])
