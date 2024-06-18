@@ -11,12 +11,11 @@ tensorflow
 
 onnx>=1.11.0
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch
-torchvision
-torchaudio
+torch==2.3.1
+torchvision==0.18.1
+torchaudio==2.3.1
 transformers>=4.21.1
-tf-keras
-
+tf_keras==2.16.0
 
 # others
 numpy>=1.21.0
@@ -36,4 +35,3 @@ gradio
 SpeechRecognition
 pyaudio
 diffusers
-
