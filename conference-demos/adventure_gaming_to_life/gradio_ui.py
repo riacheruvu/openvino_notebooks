@@ -19,6 +19,8 @@ from PIL import Image
 from pathlib import Path
 from pipelines.nano_llava_utils import OVLlavaQwen2ForCausalLM
 from threading import Thread
+from optimum.intel.openvino import OVLatentConsistencyModelPipeline
+
 
 
 OCR = True
@@ -52,10 +54,20 @@ def ready_llm_model():
 
 print("Application Set Up - Please wait")
 model_path_sr = Path(f"dnd_models/single-image-super-resolution-1033.xml") #realesrgan.xml")
-engine = LatentConsistencyEngine(
-model = model_path,
-device = ["CPU", "GPU", "GPU"] 
-) 
+
+#engine = LatentConsistencyEngine(
+#model = model_path,
+#device = ["CPU", "GPU", "GPU"] 
+#)
+model_path_lcm = Path(f"dnd_models/openvino_ir_lcm") 
+engine_lcm = OVLatentConsistencyModelPipeline.from_pretrained(model_path_lcm, export=False, compile=False)
+
+engine_lcm.reshape(batch_size=1, height=512, width=512, num_images_per_prompt=1)
+
+engine_lcm.to("GPU.0")
+engine_lcm.compile()
+
+
 llm_model, llm_tokenizer, model_configuration = ready_llm_model()
 
 if OCR is True:
@@ -201,19 +213,29 @@ def generate_from_text(theme, orig_prompt, llm_prompt, seed, num_steps,guidance_
        text = orig_prompt # + locations_json[str(dice_roll_num)]
    else:
        text = llm_prompt
-   output = engine(
-   prompt = text,
-   num_inference_steps = num_steps,
-   guidance_scale = guidance_input,
-   scheduler = scheduler,
-   lcm_origin_steps = 50,
-   model = model_path,
-   seed = seed
-)
+   output = engine_lcm(
+    prompt = text,
+    num_inference_steps = num_steps,
+    guidance_scale = guidance_input,
+    height=512, width=512
+    ).images[0]
+
+
+#   output = engine(
+#   prompt = text,
+#   num_inference_steps = num_steps,
+#   guidance_scale = guidance_input,
+#   scheduler = scheduler,
+#   lcm_origin_steps = 50,
+#   model = model_path,
+#   seed = seed
+#)
+
    img= cv2.cvtColor(np.array(output), cv2.COLOR_RGB2BGR)
    out = run_sr(img)
    img= cv2.cvtColor(np.array(out), cv2.COLOR_RGB2BGR)
    return img  
+
 
 def start(progress=gr.Progress()):
     
