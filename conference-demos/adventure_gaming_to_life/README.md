@@ -1,14 +1,13 @@
-# (Work in progress) Bringing Adventure Gaming to Life on the AI PC with the OpenVINO™ toolkit
+# Bringing 🌄 Adventure Gaming to Life 🧙 on AI PC with the OpenVINO™ toolkit 💻
+**Note: This is a work-in-progress demo.**
 
-Authors: Arisha Kumar, Garth Long, Ria Cheruvu, Dmitriy Pastushenkov, Paula Ramos, Raymond Lo, Zhuo Wu
-
-Contact: Ria Cheruvu, Dmitriy Pastushenkov
-
-Tested on: Intel® Core™ Ultra 7 and 9 Processors
-
+**Authors:** Arisha Kumar, Garth Long, Ria Cheruvu, Dmitriy Pastushenkov, Paula Ramos, Raymond Lo, Zhuo Wu
+**Contact (for questions):** Ria Cheruvu, Dmitriy Pastushenkov
+**Tested on:** Intel® Core™ Ultra 7 and 9 Processors
+## Pipeline
 ![Pipeline OCR](https://github.com/openvinotoolkit/openvino_notebooks/assets/22090501/8999027b-21e2-419d-95c4-b8a70534fc82)
 
-# Installation
+## Installation
 
 1. Clone this repository to get started
 
@@ -47,7 +46,8 @@ python gradio_ui.py
 ```
 Click on the web link to open the GUI in the web browser <br>
 
-# How to Use 🛣️
+## How to Use 🛣️
+<img width="1247" alt="new_GUI" src="https://github.com/openvinotoolkit/openvino_notebooks/assets/22090501/ee5bb729-100d-4c34-95bc-6798ac5bf885">
 There are two flows you can follow to interact with the GUI:
 
 ### (Step 1 - *Option 1* 🎲) 
