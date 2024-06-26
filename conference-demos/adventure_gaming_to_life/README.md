@@ -11,21 +11,30 @@
 
 1. Clone this repository to get started
 
-2. Create a virtual env and install the required python packages (select requirements.txt depending on the used python version)
-    ```
-	python -m venv dnd_env
-	dnd_env\Scripts\activate
-	pip install -r requirements.txt 
-	pip install "openai-whisper==20231117" --extra-index-url https://download.pytorch.org/whl/cpu
-    ``` 
-3. Download the required models and place them in a folder titled dnd_mdels:
+2. Download and optimize required models
 	- Nano-Llava (MultiModal) - Dice Recognition 
 	- Whisper - Speech Recognition
 	- Llama3-8b-instruct - Prompt Refinement
 	- AI Superesolution - Increase res of generated image
 	- Latent Consistency Models - Generating Image
+    
+	```
+    python -m venv model_installation_venv
+	model_installation_venv\Scripts\activate
+	pip install -r python3.12_requirements_model_installation.txt
+	python download_and_prepare_models.py
+    ``` 
+	After model installation, you can remove the virtual environment as it isn't needed anymore.
 
-**Steps for downloading the required models are TBD**
+
+3. Create a virtual env and install the required python packages <br>
+    ```
+    python -m venv dnd_env
+	dnd_env\Scripts\activate
+	pip install -r requirements.txt 
+	pip install "openai-whisper==20231117" --extra-index-url https://download.pytorch.org/whl/cpu
+
+    ``` 
 
 4. Open a terminal or you can use the existing one with dnd_env environment activated and run the audio server - <br>
 ```

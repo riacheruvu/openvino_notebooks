@@ -1,6 +1,7 @@
 # openvino and its dependencies
-openvino-dev==2024.1.0
+openvino==2024.2.0
 openvino-telemetry==2024.1.0
+
 nncf==2.10.0
 optimum==1.20.0
 optimum-intel==1.17.0
